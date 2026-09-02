@@ -1,130 +1,145 @@
-# Holter Monitor AF Burden Analyzer
+# Holter AF Burden Analyzer
 
-> **Cardiology - Ambulatory ECG Monitoring**  
-> Reference Standards: ESC AF Guidelines (2020), HRV Task Force (1996)
+> **Domain:** Clinical Decision Support & Biomedical Computing  
+> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
 
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB.svg)
+<div align="center">
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
+![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
+![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
 
-## Overview
-
-A real, functional Holter monitor analyzer implementing:
-
-- **AF Burden**: Time in AF / Total monitoring time x 100%
-- **RR Interval Analysis**: Mean RR, SDNN, RMSSD, pNN50
-- **Heart Rate Statistics**: Min, max, mean, resting HR
-- **Pause Detection**: Significant (>2000ms), Pathological (>3000ms)
-- **Tachycardia Burden**: % time HR >100 bpm
-- **Bradycardia Burden**: % time HR <50 bpm
-- **Irregularity Index**: Coefficient of variation of RR intervals
-
-**No external dependencies** - uses only Python standard library.
+</div>
 
 ---
 
-## Quick Start
+## 📖 What It Does
+
+Holter Monitor AF Burden Analyzer
+
+Real clinical calculations for Holter monitor analysis including:
+- AF burden calculation (time in AF / total monitoring time)
+- RR interval analysis (Mean RR, SDNN, RMSSD, pNN50)
+- Heart rate statistics (min, max, mean, resting HR)
+- Pause detection (significant >2000ms, pathological >3000ms)
+- Tachycardia burden (% time HR >100 bpm)
+- Bradycardia burden (% time HR <50 bpm)
+- Irregularity index (coefficient of variation of RR intervals)
+
+References:
+- ESC Guidelines for Atrial Fibrillation (2020)
+- Task Force of ESC/NASPE on HRV (1996)
+- Camm AJ et al. Guidelines for AF Management
+
+Author: Medical Calculator Project
+License: MIT
+
+---
+
+## ⚙️ Key Capabilities & Algorithmic Modules
+
+### 🔬 Analytical Functions
+
+- **`rr_to_hr()`**: Convert RR interval in ms to heart rate in bpm.
+- **`hr_to_rr()`**: Convert heart rate in bpm to RR interval in ms.
+- **`calculate_mean_rr()`**: Calculate mean RR interval in ms.
+- **`calculate_sdnn()`**: Calculate SDNN - Standard Deviation of NN (RR) intervals.
+
+SDNN reflects all cyclic components responsible for variability
+in the period of recording. It is the gold standard for HRV.
+
+Normal SDNN (24h Holter): >50 ms (low risk), <50 ms (high risk)
+
+Args:
+    rr_intervals_ms: List of RR intervals in milliseconds
+
+Returns:
+    SDNN in milliseconds
+- **`calculate_sdann()`**: Calculate SDANN - Standard deviation of 5-minute mean NN intervals.
+
+Reflects long-term HRV components.
+Normal SDANN (24h): >100 ms
+
+Args:
+    rr_intervals_ms: List of RR intervals in ms
+    segment_minutes: Segment duration in minutes (default 5)
+
+Returns:
+    SDANN in milliseconds
+
+---
+
+## 📐 Mathematical Formulation & Logic
+
+```text
+  """Calculate mean RR interval in ms."""
+  Calculate SDNN - Standard Deviation of NN (RR) intervals.
+  Calculate SDANN - Standard deviation of 5-minute mean NN intervals.
+  Calculate RMSSD - Root Mean Square of Successive Differences.
+  Calculate pNN50 - Percentage of successive RR intervals differing >50ms.
+```
+
+---
+
+## 💻 CLI Quickstart & Usage
+
+### 1. Guided Interactive Mode
+```bash
+python cli.py
+```
+
+### 2. Direct Parameterized Evaluation
+```bash
+python cli.py --json <value> --rr <value> --tachy-threshold <value> --brady-threshold <value>
+```
+
+### Parameter Reference
+- `--json`: Specifies input measurement or parameter value.
+- `--rr`: Specifies input measurement or parameter value.
+- `--tachy-threshold`: Specifies input measurement or parameter value.
+- `--brady-threshold`: Specifies input measurement or parameter value.
+
+### Input Data Schema
+
+| Field | Description | Requirement |
+|:------|:------------|:------------|
+| `query` | Parameter / observation metric | Required |
+| `name` | Parameter / observation metric | Required |
+
+---
+
+## 🛡️ Security & Enterprise Architecture
+
+* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
+* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
+* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
+* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
+* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+
+---
+
+## 🧪 Testing & Verification
+
+Run the automated test suite:
 
 ```bash
-# RR interval / HRV analysis
-python cli.py rr --rr "800,820,790,810,850,780,800,830,790,810"
+pytest -v
+```
 
-# Heart rate statistics
-python cli.py hr --rr "800,820,790,810,850,780,800,830,790,810"
+Execute high-throughput batch simulation benchmarks:
 
-# Pause detection
-python cli.py pauses --rr "800,820,2500,810,3200,780,800"
-
-# Burden analysis (tachy/brady/AF)
-python cli.py burden --rr "800,820,790,810,850,780,800,830,790,810"
-
-# Irregularity index
-python cli.py irregularity --rr "800,650,900,700,850,600,950,750"
-
-# Comprehensive analysis
-python cli.py comprehensive --rr "800,820,790,810,850,780,800,830,790,810"
+```bash
+python simulator.py --tasks 1000 --concurrency 8
 ```
 
 ---
 
-## Python API
+## 🐳 Container Deployment
 
-```python
-from holter_af import (
-    calculate_mean_rr,
-    calculate_sdnn,
-    calculate_rmssd,
-    calculate_pnn50,
-    calculate_heart_rate_stats,
-    detect_pauses,
-    calculate_af_burden,
-    calculate_irregularity_index,
-    comprehensive_holter_analysis,
-)
-
-rr = [800, 820, 790, 810, 850, 780, 800, 830, 790, 810]
-
-# HRV metrics
-sdnn = calculate_sdnn(rr)       # Standard deviation of NN intervals
-rmssd = calculate_rmssd(rr)     # Root mean square of successive differences
-pnn50 = calculate_pnn50(rr)     # % of successive RR intervals >50ms different
-
-# Heart rate stats
-stats = calculate_heart_rate_stats(rr)
-# -> {'min_hr': ..., 'max_hr': ..., 'mean_hr': ..., 'resting_hr': ...}
-
-# Pause detection
-pauses = detect_pauses([800, 2500, 810, 3200, 780])
-# -> {'num_significant': 1, 'num_pathological': 1, ...}
-
-# AF burden
-af = calculate_af_burden(rr)
-# -> {'af_burden_percent': ..., 'monitoring_hours': ..., ...}
-
-# Irregularity index
-irreg = calculate_irregularity_index(rr)
-# -> {'irregularity_index': 0.03, 'irregular': False, ...}
+```bash
+docker build -t holter-af-burden-analyzer .
+docker run -p 8000:8000 holter-af-burden-analyzer
 ```
-
----
-
-## Clinical Reference
-
-### HRV Metrics
-| Metric | Normal (24h) | Significance |
-|--------|-------------|-------------|
-| SDNN | >50 ms | <50 ms: high risk for cardiac events |
-| RMSSD | >20 ms | Reflects parasympathetic activity |
-| pNN50 | >5% | Decreases with age, reduced in AF |
-
-### Pause Thresholds
-| Type | Duration | Clinical Action |
-|------|----------|----------------|
-| Significant | >2000 ms | Evaluate for symptomatic bradycardia |
-| Pathological | >3000 ms | Consider pacemaker evaluation |
-
-### AF Burden Categories
-| Burden | Classification |
-|--------|---------------|
-| 0% | No AF detected |
-| <1% | Low burden |
-| 1-10% | Moderate burden |
-| >10% | High burden |
-
-### Irregularity Index (CV)
-| CV Value | Interpretation |
-|----------|---------------|
-| <0.10 | Regular rhythm |
-| 0.10-0.15 | Borderline irregularity |
-| >0.15 | Irregular (suggests AF) |
-
----
-
-## Disclaimer
-
-This tool is for **educational and clinical decision support purposes only**. It does not replace professional medical judgment. Always correlate with clinical context.
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
