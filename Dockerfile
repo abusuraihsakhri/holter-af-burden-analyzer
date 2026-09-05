@@ -10,9 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir fastapi uvicorn pydantic pytest
+RUN pip install --no-cache-dir ".[dev]"
 
 COPY . .
+
+# Create a non-root user for security
+RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 8000
 

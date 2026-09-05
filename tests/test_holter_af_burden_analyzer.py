@@ -63,3 +63,33 @@ def test_supervisor_consensus_and_audit():
     assert main(["audit", "--task-id", "CLI-TEST-01"]) == 0
     assert main(["chat", "Explain", "specifications"]) == 0
     assert main(["verify-audit"]) == 0
+
+
+def test_cli_audit_command():
+    """CLI audit command returns 0 and produces output."""
+    rc = main(["audit", "--task-id", "CLI-AUDIT-01", "--primary-metric", "35.0", "--status-descriptor", "DISCORDANT_ANOMALY"])
+    assert rc == 0
+
+
+def test_cli_audit_critical_flag():
+    """CLI audit with critical flag returns 0."""
+    rc = main(["audit", "--task-id", "CLI-AUDIT-02", "--is-critical"])
+    assert rc == 0
+
+
+def test_cli_chat_command():
+    """CLI chat command returns 0."""
+    rc = main(["chat", "What", "is", "AF", "burden"])
+    assert rc == 0
+
+
+def test_cli_verify_audit_command():
+    """CLI verify-audit returns 0 when audit trail is intact."""
+    rc = main(["verify-audit"])
+    assert rc == 0
+
+
+def test_cli_verify_audit_json():
+    """CLI verify-audit with --json flag (global flag before subcommand) returns 0."""
+    rc = main(["--json", "verify-audit"])
+    assert rc == 0

@@ -26,6 +26,10 @@ from holter_af import (
     hr_to_rr,
 )
 
+from agents.models import SystemTaskPayload
+from agents.supervisor import SystemSupervisor
+from agents.base import AuditLogger
+
 
 def parse_rr_input(rr_str: str) -> list:
     """Parse RR intervals from comma-separated string or file."""
@@ -243,6 +247,80 @@ def cmd_comprehensive(args):
     return 0
 
 
+def cmd_audit(args):
+    """Run a distributed component audit task."""
+    supervisor = SystemSupervisor(model_provider="mock")
+    payload = SystemTaskPayload(
+        task_id=args.task_id,
+        target_identifier=args.target_id or "CLI-TARGET",
+        primary_metric=args.primary_metric,
+        secondary_metric=args.secondary_metric,
+        status_descriptor=args.status_descriptor,
+        is_critical_flag=args.is_critical,
+    )
+    dossier = supervisor.process_task(payload)
+
+    print("=" * 60)
+    print("  DISTRIBUTED COMPONENT AUDIT")
+    print("=" * 60)
+    print(f"  Dossier ID:      {dossier.dossier_id}")
+    print(f"  Task ID:         {dossier.task_id}")
+    print(f"  Target:          {dossier.target_identifier}")
+    print(f"  Overall Urgency: {dossier.overall_urgency.value}")
+    print(f"  Integrity:       {dossier.integrity_status.value}")
+    print(f"  Total Alerts:    {dossier.total_alerts}")
+    print(f"  Critical Alerts: {dossier.critical_alerts_count}")
+    print(f"  Audit Hash:      {dossier.audit_hash}")
+    print(f"  Summary:         {dossier.consensus_summary}")
+
+    if dossier.alerts:
+        print("\n  ALERTS:")
+        for a in dossier.alerts:
+            print(f"    [{a.urgency.value}] {a.summary}")
+            print(f"      Remediation: {a.actionable_remediation}")
+
+    if args.json:
+        print("\n" + json.dumps(dossier.to_dict(), indent=2, default=str))
+    return 0
+
+
+def cmd_chat(args):
+    """Query the air-gapped supervisory assistant."""
+    supervisor = SystemSupervisor(model_provider="mock")
+    query = " ".join(args.query)
+    response = supervisor.query_supervisory_chat(query)
+    print(response)
+    return 0
+
+
+def cmd_verify_audit(args):
+    """Verify the cryptographic integrity of the HMAC audit trail."""
+    verified = AuditLogger.verify_integrity()
+    trail_len = len(AuditLogger.get_trail())
+    print("=" * 60)
+    print("  HMAC-SHA256 AUDIT TRAIL VERIFICATION")
+    print("=" * 60)
+    print(f"  Audit Blocks: {trail_len}")
+    print(f"  Integrity:    {'VERIFIED' if verified else 'COMPROMISED'}")
+    if args.json:
+        print("\n" + json.dumps({"verified": verified, "blocks": trail_len}, indent=2))
+    return 0 if verified else 1
+
+
+def cmd_serve(args):
+    """Start the FastAPI REST API server."""
+    try:
+        import uvicorn
+        from agents.api import app
+    except ImportError as e:
+        print(f"Error: missing dependencies for serve command: {e}", file=sys.stderr)
+        print("Install with: pip install fastapi uvicorn", file=sys.stderr)
+        return 1
+
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="holter-af",
@@ -277,6 +355,27 @@ def main(argv=None):
     p_comp = subparsers.add_parser("comprehensive", help="Comprehensive Holter analysis")
     p_comp.add_argument("--rr", required=True, help="Comma-separated RR intervals in ms")
 
+    # Distributed Component Audit
+    p_audit = subparsers.add_parser("audit", help="Run a distributed component audit task")
+    p_audit.add_argument("--task-id", required=True, help="Unique task identifier")
+    p_audit.add_argument("--target-id", default="CLI-TARGET", help="Target identifier")
+    p_audit.add_argument("--primary-metric", type=float, default=10.0, help="Primary measurement value")
+    p_audit.add_argument("--secondary-metric", type=float, default=2.0, help="Secondary measurement value")
+    p_audit.add_argument("--status-descriptor", default="NOMINAL", help="Status descriptor")
+    p_audit.add_argument("--is-critical", action="store_true", help="Flag as critical priority")
+
+    # Air-gapped supervisory chat
+    p_chat = subparsers.add_parser("chat", help="Query the air-gapped supervisory assistant")
+    p_chat.add_argument("query", nargs="+", help="Query text for the assistant")
+
+    # Verify HMAC audit trail
+    p_verify = subparsers.add_parser("verify-audit", help="Verify HMAC-SHA256 audit trail integrity")
+
+    # Serve REST API
+    p_serve = subparsers.add_parser("serve", help="Start the FastAPI REST API server")
+    p_serve.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
+    p_serve.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000)")
+
     args = parser.parse_args(argv)
 
     commands = {
@@ -286,6 +385,10 @@ def main(argv=None):
         "burden": cmd_burden,
         "irregularity": cmd_irregularity,
         "comprehensive": cmd_comprehensive,
+        "audit": cmd_audit,
+        "chat": cmd_chat,
+        "verify-audit": cmd_verify_audit,
+        "serve": cmd_serve,
     }
 
     return commands[args.command](args)

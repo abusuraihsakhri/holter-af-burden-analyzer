@@ -1,14 +1,17 @@
 """
 Distributed Component High-Throughput Traffic & Stress Testing Simulator for Holter Af Burden Analyzer.
 """
+import argparse
 import time
 import random
-import sys
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
 from agents.base import PHIGuard, SecurityException, AuditLogger
 
-def run_simulation(iterations: int = 100):
+
+def run_simulation(iterations: int = 100, seed: int | None = None):
+    if seed is not None:
+        random.seed(seed)
     print(f"Starting Distributed Component Simulation on Holter Af Burden Analyzer ({iterations} tasks)...")
     supervisor = SystemSupervisor(model_provider="mock")
     start_time = time.time()
@@ -62,6 +65,14 @@ def run_simulation(iterations: int = 100):
     print(f"  HMAC Cryptographic Check:  {AuditLogger.verify_integrity()}")
     print("=" * 70)
 
+
+def main():
+    parser = argparse.ArgumentParser(description="Holter Af Burden Analyzer Stress Testing Simulator")
+    parser.add_argument("--iterations", "-n", type=int, default=100, help="Number of simulation iterations (default: 100)")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
+    args = parser.parse_args()
+    run_simulation(args.iterations, seed=args.seed)
+
+
 if __name__ == "__main__":
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 100
-    run_simulation(n)
+    main()

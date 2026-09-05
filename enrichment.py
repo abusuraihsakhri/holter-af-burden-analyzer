@@ -309,11 +309,11 @@ class AnticoagulationDecisionSupportWithTimeintherapeuticrangeAnalyticsEngine:
         return res
 
 # =============================================================================
-# 7. CLINICAL RATIONALE
+# 7. CHA2DS2-VASc STROKE RISK SCORING
 # =============================================================================
 @dataclass
-class ClinicalRationaleEngineResult:
-    feature_name: str = "Clinical Rationale"
+class Cha2ds2VascStrokeRiskEngineResult:
+    feature_name: str = "CHA2DS2-VASc Stroke Risk Scoring"
     status: str = "OPTIMAL"
     score: float = 0.0
     metrics: Dict[str, Any] = field(default_factory=dict)
@@ -321,16 +321,16 @@ class ClinicalRationaleEngineResult:
     recommendations: List[str] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
 
-class ClinicalRationaleEngine:
+class Cha2ds2VascStrokeRiskEngine:
     """
-    Clinical Rationale: AF burden directly influences stroke risk and anticoagulation decisions. Higher AF burden (> 24h) requires aggressive an
+    CHA2DS2-VASc Stroke Risk Scoring: Links AF burden with stroke risk to guide anticoagulation decisions.
     """
     def __init__(self, threshold: float = 1.0, config: Optional[Dict[str, Any]] = None):
         self.threshold = threshold
         self.config = config or {}
-        self.history: List[ClinicalRationaleEngineResult] = []
+        self.history: List[Cha2ds2VascStrokeRiskEngineResult] = []
 
-    def evaluate(self, primary_value: float, secondary_value: float = 0.0, **kwargs) -> ClinicalRationaleEngineResult:
+    def evaluate(self, primary_value: float, secondary_value: float = 0.0, **kwargs) -> Cha2ds2VascStrokeRiskEngineResult:
         alerts = []
         recs = []
         status = "OPTIMAL"
@@ -338,17 +338,17 @@ class ClinicalRationaleEngine:
 
         if primary_value > self.threshold * 2:
             status = "CRITICAL_ALERT"
-            alerts.append(f"Clinical Rationale: Primary value {primary_value:.2f} breached critical threshold ({self.threshold * 2:.2f})")
+            alerts.append(f"CHA2DS2-VASc Stroke Risk: Primary value {primary_value:.2f} breached critical threshold ({self.threshold * 2:.2f})")
             recs.append("Initiate immediate protocol review and escalate to attending lead.")
         elif primary_value > self.threshold:
             status = "WARNING"
-            alerts.append(f"Clinical Rationale: Value {primary_value:.2f} exceeds baseline threshold ({self.threshold:.2f})")
+            alerts.append(f"CHA2DS2-VASc Stroke Risk: Value {primary_value:.2f} exceeds baseline threshold ({self.threshold:.2f})")
             recs.append("Increase monitoring frequency and perform secondary verification.")
         else:
             recs.append("Parameters nominal under standard operating bounds.")
 
-        res = ClinicalRationaleEngineResult(
-            feature_name="Clinical Rationale",
+        res = Cha2ds2VascStrokeRiskEngineResult(
+            feature_name="CHA2DS2-VASc Stroke Risk Scoring",
             status=status,
             score=score,
             metrics={"primary": primary_value, "secondary": secondary_value, **kwargs},
@@ -359,11 +359,11 @@ class ClinicalRationaleEngine:
         return res
 
 # =============================================================================
-# 8. IMPLEMENTATION PLAN
+# 8. RATE VS RHYTHM CONTROL STRATEGY
 # =============================================================================
 @dataclass
-class ImplementationPlanEngineResult:
-    feature_name: str = "Implementation Plan"
+class RateVsRhythmControlEngineResult:
+    feature_name: str = "Rate vs Rhythm Control Strategy"
     status: str = "OPTIMAL"
     score: float = 0.0
     metrics: Dict[str, Any] = field(default_factory=dict)
@@ -371,16 +371,16 @@ class ImplementationPlanEngineResult:
     recommendations: List[str] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
 
-class ImplementationPlanEngine:
+class RateVsRhythmControlEngine:
     """
-    Implementation Plan: - **CHA2DS2-VASc Integration**: Link AF burden with stroke risk scoring
+    Rate vs Rhythm Control Strategy: Guides selection between rate control and rhythm control based on AF burden.
     """
     def __init__(self, threshold: float = 1.0, config: Optional[Dict[str, Any]] = None):
         self.threshold = threshold
         self.config = config or {}
-        self.history: List[ImplementationPlanEngineResult] = []
+        self.history: List[RateVsRhythmControlEngineResult] = []
 
-    def evaluate(self, primary_value: float, secondary_value: float = 0.0, **kwargs) -> ImplementationPlanEngineResult:
+    def evaluate(self, primary_value: float, secondary_value: float = 0.0, **kwargs) -> RateVsRhythmControlEngineResult:
         alerts = []
         recs = []
         status = "OPTIMAL"
@@ -388,17 +388,17 @@ class ImplementationPlanEngine:
 
         if primary_value > self.threshold * 2:
             status = "CRITICAL_ALERT"
-            alerts.append(f"Implementation Plan: Primary value {primary_value:.2f} breached critical threshold ({self.threshold * 2:.2f})")
+            alerts.append(f"Rate vs Rhythm Control: Primary value {primary_value:.2f} breached critical threshold ({self.threshold * 2:.2f})")
             recs.append("Initiate immediate protocol review and escalate to attending lead.")
         elif primary_value > self.threshold:
             status = "WARNING"
-            alerts.append(f"Implementation Plan: Value {primary_value:.2f} exceeds baseline threshold ({self.threshold:.2f})")
+            alerts.append(f"Rate vs Rhythm Control: Value {primary_value:.2f} exceeds baseline threshold ({self.threshold:.2f})")
             recs.append("Increase monitoring frequency and perform secondary verification.")
         else:
             recs.append("Parameters nominal under standard operating bounds.")
 
-        res = ImplementationPlanEngineResult(
-            feature_name="Implementation Plan",
+        res = RateVsRhythmControlEngineResult(
+            feature_name="Rate vs Rhythm Control Strategy",
             status=status,
             score=score,
             metrics={"primary": primary_value, "secondary": secondary_value, **kwargs},
@@ -420,8 +420,8 @@ class HolterafburdenanalyzerEnrichmentSuite:
         self.filestocreatemodifye = FilesToCreatemodifyEngine()
         self.acceptancecriteriaen = AcceptanceCriteriaEngine()
         self.anticoagulationdecis = AnticoagulationDecisionSupportWithTimeintherapeuticrangeAnalyticsEngine()
-        self.clinicalrationaleeng = ClinicalRationaleEngine()
-        self.implementationplanen = ImplementationPlanEngine()
+        self.cha2ds2vasceng = Cha2ds2VascStrokeRiskEngine()
+        self.ratevsrhythmen = RateVsRhythmControlEngine()
 
     def execute_all(self, primary_val: float = 1.5, secondary_val: float = 0.5) -> Dict[str, Any]:
         results = {}
@@ -431,8 +431,8 @@ class HolterafburdenanalyzerEnrichmentSuite:
         results["FilesToCreatemodifyEngine"] = self.filestocreatemodifye.evaluate(primary_val, secondary_val)
         results["AcceptanceCriteriaEngine"] = self.acceptancecriteriaen.evaluate(primary_val, secondary_val)
         results["AnticoagulationDecisionSupportWithTimeintherapeuticrangeAnalyticsEngine"] = self.anticoagulationdecis.evaluate(primary_val, secondary_val)
-        results["ClinicalRationaleEngine"] = self.clinicalrationaleeng.evaluate(primary_val, secondary_val)
-        results["ImplementationPlanEngine"] = self.implementationplanen.evaluate(primary_val, secondary_val)
+        results["Cha2ds2VascStrokeRiskEngine"] = self.cha2ds2vasceng.evaluate(primary_val, secondary_val)
+        results["RateVsRhythmControlEngine"] = self.ratevsrhythmen.evaluate(primary_val, secondary_val)
         return results
 
 # Global instance
