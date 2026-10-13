@@ -28,7 +28,7 @@ from holter_af import (
 
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
-from agents.base import AuditLogger
+from agents.base import AuditLogger, SecurityException
 
 
 def parse_rr_input(rr_str: str) -> list:
@@ -390,7 +390,7 @@ def main(argv=None):
 
     try:
         return commands[args.command](args)
-    except (ValueError, OverflowError, ZeroDivisionError) as exc:
+    except (ValueError, OverflowError, ZeroDivisionError, SecurityException) as exc:
         print(f"Invalid input: {exc}", file=sys.stderr)
         return 1
 
