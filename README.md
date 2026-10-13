@@ -1,217 +1,77 @@
 # Holter AF Burden Analyzer
 
-> **Domain:** Clinical Decision Support & Biomedical Computing
-> **Standards:** ESC Guidelines for AF (2020), Task Force ESC/NASPE on HRV (1996)
+A research-oriented RR-interval and atrial-fibrillation burden calculator. The project includes a browser-only application, Python calculation functions, a CLI, and an optional FastAPI server.
 
-<div align="center">
+## Browser application
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+Open the local application by serving the `web/` directory over HTTP, or use the GitHub Pages deployment if it has been enabled for this repository. The browser implementation runs locally without transmitting input files to an API.
 
-</div>
+1. Paste a list of **RR intervals in milliseconds**, then select **Analyze recording**.
+2. Or select a CSV file with an `rr_ms` column and an optional `af` column. Supply **1** or **0** per interval for AF flags confirmed against the ECG. See [sample.csv](sample.csv) for a *synthetic* example.
+3. Review time-weighted AF/irregularity, tachycardia and bradycardia time percentages; HR and RR statistics; and long RR intervals.
+4. Export JSON or CSV summary locally.
 
----
+A CSV file takes precedence over the text box. Files are processed with browser JavaScript and are not uploaded. Supported uploads are at most 5 MB. The browser app does not require Python, Pyodide, a login, or remote APIs. Recent desktop/mobile browsers supporting JavaScript ES modules are required.
 
-## What It Does
+## Interpretation and limitations
 
-Clinical calculations for Holter monitor analysis:
+- With **ECG-reviewed AF annotations**, AF burden equals the sum of marked RR durations divided by total analyzed RR duration. Annotation correctness and artefact exclusion remain the operator's responsibility.
+- **Without annotations**, the calculator reports an RR-variability *screening estimate* using local coefficient of variation. This is **not** a diagnosis or confirmed AF burden. Ectopy, artefact, and other irregular rhythms can change the result.
+- Mean heart rate is time-weighted. SDNN, RMSSD, and pNN50 are computed from the input RR series, **not automatically filtered NN intervals**. Interpret clinical HRV only after appropriate beat classification, cleaning, and duration standardization.
+- A long RR interval is not by itself evidence of a pathologic pause. ECG review is essential.
+- No anticoagulation, stroke-risk, or rate/rhythm treatment recommendations are provided. **Not validated for clinical decision-making.**
 
-- **AF Burden** - Time in AF / total monitoring time (%)
-- **RR Interval Analysis** - Mean RR, SDNN, RMSSD, pNN50
-- **Heart Rate Statistics** - Min, max, mean, resting HR
-- **Pause Detection** - Significant (>2000ms), pathological (>3000ms)
-- **Tachycardia Burden** - % time HR >100 bpm
-- **Bradycardia Burden** - % time HR <50 bpm
-- **Irregularity Index** - Coefficient of variation of RR intervals
-- **Distributed Component Audit** - Multi-worker task evaluation with HMAC-SHA256 audit trail
-- **FastAPI REST API** - OpenAPI 3.1 endpoints with Prometheus metrics
+See the [2024 ESC atrial fibrillation guidelines](https://www.escardio.org/guidelines/clinical-practice-guidelines/all-esc-practice-guidelines/atrial-fibrillation) for ECG diagnostic requirements and AF-burden terminology.
 
----
+## Python CLI and API
 
-## Installation
+Requires **Python 3.10+**.
 
 ```bash
-# Clone the repository
 git clone https://github.com/abusuraihsakhri/holter-af-burden-analyzer.git
 cd holter-af-burden-analyzer
+python -m pip install -e ".[dev]"
 
-# Install dependencies
-pip install -e ".[dev]"
-```
+# Optional local browser UI
+python -m http.server 8080 -d web
 
----
-
-## Usage
-
-### Clinical Analysis CLI
-
-```bash
-# RR interval / HRV analysis
+# RR / heart rate / burden / complete report
 python cli.py rr --rr "800,810,790,805,795,800"
-
-# Heart rate statistics
 python cli.py hr --rr "800,810,790,805,795,800"
-
-# Pause detection
-python cli.py pauses --rr "800,800,2500,800,3500,800"
-
-# Tachycardia/bradycardia/AF burden
-python cli.py burden --rr "800,810,790,805,795,800" --tachy-threshold 100 --brady-threshold 50
-
-# Irregularity index
-python cli.py irregularity --rr "800,650,900,700,850,600,950,750"
-
-# Comprehensive Holter analysis
+python cli.py burden --rr "800,810,790,805,795,800"
 python cli.py comprehensive --rr "800,810,790,805,795,800"
+python cli.py --json comprehensive --rr "800,810,790,805,795,800"
 
-# Output JSON (add --json to any command)
-python cli.py rr --rr "800,810,790" --json
+# Local API and browser UI on http://127.0.0.1:8000/
+python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
-### Distributed Component Audit CLI
+The API exposes `POST /api/analyze` for a JSON payload such as:
 
-```bash
-# Run an audit task
-python cli.py audit --task-id "TASK-001" --primary-metric 12.5 --status-descriptor "NOMINAL"
-
-# Query the supervisory assistant
-python cli.py chat "Explain AF burden significance"
-
-# Verify HMAC audit trail integrity
-python cli.py verify-audit
-
-# Start the REST API server
-python cli.py serve --host 0.0.0.0 --port 8000
+```json
+{"rr_intervals_ms":[500,1500],"af_annotations":[true,false]}
 ```
 
-### REST API Server
+A 25% time-weighted annotated AF burden is expected for this example. The legacy `POST /api/audit`, `POST /api/chat`, `GET /api/audit/logs`, and `GET /metrics` endpoints remain available for compatibility. **The legacy generic audit thresholds are not calibrated Holter clinical thresholds**; the mock chat endpoint performs no clinical analysis.
 
-```bash
-# Start the FastAPI server
-python cli.py serve
+The API is unauthenticated, and its audit history is in-memory. Its identifier-screening regexes are **not** comprehensive PHI de-identification. Do not expose the API on a public network or submit identifiable clinical information. `AUDIT_SECRET_KEY` controls the in-process HMAC audit signing key; set it securely for server use. The audit ledger is neither persistent nor a regulated audit system.
 
-# Or with Docker
-docker compose up --build
-```
-
-Endpoints:
-- `GET /health` - Health check
-- `GET /metrics` - Prometheus metrics
-- `POST /api/audit` - Dispatch audit task
-- `POST /api/chat` - Supervisory chat
-- `GET /api/audit/logs` - Audit trail
-
-### Stress Testing Simulator
-
-```bash
-# Run simulation (default: 100 iterations)
-python simulator.py --iterations 1000 --seed 42
-```
-
----
-
-## API Reference
-
-### Core Clinical Functions
-
-| Function | Description |
-|:---------|:------------|
-| `rr_to_hr(rr_ms)` | Convert RR interval (ms) to heart rate (bpm) |
-| `hr_to_rr(hr_bpm)` | Convert heart rate (bpm) to RR interval (ms) |
-| `calculate_mean_rr(rr)` | Mean RR interval (ms) |
-| `calculate_sdnn(rr)` | SDNN - Standard Deviation of NN intervals |
-| `calculate_rmssd(rr)` | RMSSD - Root Mean Square of Successive Differences |
-| `calculate_pnn50(rr)` | pNN50 - % of successive RR intervals differing >50ms |
-| `calculate_heart_rate_stats(rr)` | Heart rate statistics (min, max, mean, resting) |
-| `detect_pauses(rr)` | Pause detection (>2000ms significant, >3000ms pathological) |
-| `calculate_tachycardia_burden(rr, threshold)` | Tachycardia burden (% time HR > threshold) |
-| `calculate_bradycardia_burden(rr, threshold)` | Bradycardia burden (% time HR < threshold) |
-| `calculate_irregularity_index(rr)` | Irregularity index (coefficient of variation) |
-| `calculate_af_burden(rr, annotations)` | AF burden calculation |
-| `comprehensive_holter_analysis(rr)` | Comprehensive Holter analysis |
-
----
+For container use, set up a local `.env` based on `.env.example`, then run `docker compose up --build`. Container mode explicitly binds port 8000; apply network access controls.
 
 ## Testing
 
 ```bash
-# Run all tests
-pytest -v
-
-# Run specific test files
-pytest test_holter_af.py -v
-pytest tests/ -v
+python -m pytest -v
+python -m compileall -q .
+node --test tests/browser-calculator.test.mjs
 ```
 
-### Test Coverage
+GitHub Actions runs Python 3.10–3.12 and Node-based calculator tests. Tests cover annotated time burden, invalid numeric input, CSV validation, core HRV arithmetic, audit integrity, and API responses.
 
-- **test_holter_af.py** - Core clinical calculation tests (44 tests)
-- **tests/test_holter_af_burden_analyzer.py** - Agent, worker, and audit tests
-- **tests/test_enrichment.py** - Enrichment suite tests
+## Technology, privacy and license
 
----
+The browser client uses HTML, CSS and JavaScript ES modules without external dependencies. The server is Python with FastAPI/Pydantic. The CLI calculation code is plain Python.
 
-## Security
+Browser analysis is local, but normal web hosting still serves the site assets. The Python API processes any data explicitly submitted to it. Only synthetic or de-identified data should be used.
 
-- **Zero-PHI Outbound Guard** - AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers
-- **HMAC-SHA256 Audit Trail** - Chained, cryptographically signed logs
-- **Non-root Docker container** - Runs as unprivileged user
-
-### Environment Variables
-
-| Variable | Description | Required |
-|:---------|:------------|:---------|
-| `AUDIT_SECRET_KEY` | HMAC-SHA256 signing key (generate: `python -c "import secrets; print(secrets.token_hex(32))"`) | Recommended |
-| `MODEL_PROVIDER` | LLM provider: mock, ollama, claude, openai | No (default: mock) |
-
-Copy `.env.example` to `.env` and set your values. Never commit `.env`.
-
----
-
-## Project Structure
-
-```
-holter-af-burden-analyzer/
-├── cli.py                    # Command-line interface
-├── holter_af.py              # Core clinical calculations
-├── enrichment.py             # Enrichment feature engines
-├── simulator.py              # Stress testing simulator
-├── pyproject.toml            # Package configuration
-├── Dockerfile                # Container build
-├── docker-compose.yml        # Container orchestration
-├── web/
-│   └── index.html            # Operations console UI
-├── agents/
-│   ├── api.py                # FastAPI REST server
-│   ├── base.py               # Security, PHI guard, audit trail
-│   ├── models.py             # Pydantic data models
-│   ├── supervisor.py         # Multi-worker orchestrator
-│   ├── workers.py            # Specialized worker agents
-│   ├── llm_factory.py        # LLM provider factory
-│   ├── learning.py           # Bayesian calibration engine
-│   ├── metrics.py            # Prometheus metrics collector
-│   └── streamer.py           # WebSocket telemetry streamer
-├── tests/
-│   ├── test_holter_af_burden_analyzer.py
-│   └── test_enrichment.py
-├── test_holter_af.py         # Core calculation tests
-└── .github/workflows/ci.yml  # CI/CD pipeline
-```
-
----
-
-## References
-
-- ESC Guidelines for Atrial Fibrillation (2020)
-- Task Force of ESC/NASPE on HRV (1996)
-- Camm AJ et al. Guidelines for AF Management
-
----
-
-## License
-
-MIT License. See [LICENSE](LICENSE).
+Licensed under the [MIT License](LICENSE).
