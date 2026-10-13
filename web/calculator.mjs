@@ -79,7 +79,7 @@ export function analyzeRR(rr, flags = null, options = {}) {
   if (!Array.isArray(rr) || rr.length < 2) throw new Error('At least two RR intervals are required.');
   if (rr.length > 1000000) throw new Error('Maximum supported input is 1,000,000 RR intervals.');
   rr.forEach((v, i) => {
-    if (!finitePositive(v)) throw new Error('RR interval ' + (i + 1) + ' must be positive and finite.');
+    if (!finitePositive(v) || v < 1 || v > 86400000) throw new Error('RR interval ' + (i + 1) + ' must be between 1 ms and 24 h.');
   });
   if (flags !== null && (!Array.isArray(flags) || flags.length !== rr.length || flags.some(flag => typeof flag !== 'boolean'))) {
     throw new Error('AF annotations must be one boolean per RR interval.');
@@ -123,6 +123,7 @@ export function analyzeRR(rr, flags = null, options = {}) {
   }
   const allWarnings = [];
   if (flags === null) allWarnings.push('No verified ECG annotations: the RR-variability estimate is not a diagnosis or confirmed AF burden.');
+  if (flags === null && rr.length < 5) allWarnings.push('Fewer than five intervals: RR screening cannot classify any window; zero estimated burden is not informative.');
   else if (flags.some(Boolean)) allWarnings.push('AF present in annotations: RR-derived HRV is not NN-only HRV.');
   if (pauses.length) allWarnings.push('Long RR intervals require ECG review to distinguish pauses from artefact or ectopy.');
   if (cv > cvThreshold) allWarnings.push('Elevated RR variability is nonspecific and cannot diagnose AF.');
