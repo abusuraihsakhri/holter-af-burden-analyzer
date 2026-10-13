@@ -122,9 +122,12 @@ export function analyzeRR(rr, flags = null, options = {}) {
     }
   }
   const allWarnings = [];
-  if (flags === null) allWarnings.push('No verified ECG annotations: the RR-variability estimate is not a diagnosis or confirmed AF burden.');
-  if (flags === null && rr.length < 5) allWarnings.push('Fewer than five intervals: RR screening cannot classify any window; zero estimated burden is not informative.');
-  else if (flags.some(Boolean)) allWarnings.push('AF present in annotations: RR-derived HRV is not NN-only HRV.');
+  if (flags === null) {
+    allWarnings.push('No verified ECG annotations: the RR-variability estimate is not a diagnosis or confirmed AF burden.');
+    if (rr.length < 5) allWarnings.push('Fewer than five intervals: RR screening cannot classify any window; zero estimated burden is not informative.');
+  } else if (flags.some(Boolean)) {
+    allWarnings.push('AF present in annotations: RR-derived HRV is not NN-only HRV.');
+  }
   if (pauses.length) allWarnings.push('Long RR intervals require ECG review to distinguish pauses from artefact or ectopy.');
   if (cv > cvThreshold) allWarnings.push('Elevated RR variability is nonspecific and cannot diagnose AF.');
   return {
