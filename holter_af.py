@@ -328,8 +328,7 @@ def calculate_irregularity_index(rr_intervals_ms: List[float]) -> Dict[str, Any]
     
     CV = SDNN / Mean RR
     
-    A high irregularity index (CV > 0.15) suggests atrial fibrillation
-    or other irregular rhythm.
+    A high CV is nonspecific and cannot establish AF without ECG review.
     
     Args:
         rr_intervals_ms: List of RR intervals in milliseconds
@@ -365,7 +364,7 @@ def calculate_af_burden(
     Calculate AF burden from RR intervals.
     
     If af_annotations are provided (beat-by-beat AF flags), uses them directly.
-    Otherwise, estimates AF from RR irregularity (CV > threshold).
+    Otherwise, reports a screening proxy based on RR irregularity (CV > threshold).
     
     AF burden = Time in AF / Total monitoring time x 100%
     
@@ -460,9 +459,9 @@ def comprehensive_holter_analysis(
     result["parameters"]["heart_rate"] = hr_stats
     
     if hr_stats["max_hr"] > 150:
-        result["warnings"].append(f"Maximum HR {hr_stats['max_hr']} bpm - consider SVT or rapid AF")
+        result["warnings"].append(f"High instantaneous HR ({hr_stats['max_hr']} bpm); review ECG for artefact.")
     if hr_stats["min_hr"] < 40:
-        result["warnings"].append(f"Minimum HR {hr_stats['min_hr']} bpm - significant bradycardia")
+        result["warnings"].append(f"Low instantaneous HR ({hr_stats['min_hr']} bpm); review ECG for artefact.")
     
     # HRV metrics: strictly NN-filtered data are required for clinical HRV interpretation.
     if af_annotations is None:
@@ -489,10 +488,10 @@ def comprehensive_holter_analysis(
     
     if pauses["num_pathological"] > 0:
         result["warnings"].append(
-            f"{pauses['num_pathological']} pathological pause(s) detected (>{PAUSE_PATHOLOGICAL_MS}ms)"
+            f"{pauses['num_pathological']} RR interval(s) >{PAUSE_PATHOLOGICAL_MS}ms; verify ECG."
         )
     if pauses["num_significant"] > 0:
-        result["findings"].append(f"{pauses['num_significant']} significant pause(s) (>{PAUSE_SIGNIFICANT_MS}ms)")
+        result["findings"].append(f"{pauses['num_significant']} RR interval(s) >{PAUSE_SIGNIFICANT_MS}ms; verify ECG.")
     
     # Tachycardia/bradycardia burden
     tachy = calculate_tachycardia_burden(rr_intervals_ms)
