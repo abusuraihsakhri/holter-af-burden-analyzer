@@ -60,10 +60,7 @@ def cmd_rr_analysis(args):
     print(f"  RMSSD:               {rmssd:.1f} ms")
     print(f"  pNN50:               {pnn50:.1f}%")
 
-    if sdnn < 50:
-        print("  ** Low SDNN - reduced HRV (increased risk)")
-    if rmssd < 20:
-        print("  ** Low RMSSD - reduced parasympathetic activity")
+    print("  NOTE: Clinical HRV interpretation requires cleaned NN intervals and an appropriate recording duration.")
 
     if args.json:
         result = {
@@ -156,7 +153,7 @@ def cmd_burden(args):
     print(f"\n  Irregularity Index (CV): {irregularity['irregularity_index']:.4f}")
     print(f"    {irregularity['interpretation']}")
 
-    print(f"\n  AF Burden: {af['af_burden_percent']:.2f}%")
+    print(f"\n  RR irregularity screening estimate: {af['af_burden_percent']:.2f}% (not ECG-confirmed AF)")
     print(f"    AF time: {af['af_hours']:.2f} hours / {af['monitoring_hours']:.2f} hours")
 
     if args.json:
@@ -228,7 +225,7 @@ def cmd_comprehensive(args):
     print(f"\n  Irregularity index: {irreg['irregularity_index']:.4f} ({irreg['interpretation']})")
 
     af = result["parameters"]["af_burden"]
-    print(f"\n  AF burden: {af['af_burden_percent']:.2f}%")
+    print(f"\n  RR irregularity screening estimate: {af['af_burden_percent']:.2f}% (not ECG-confirmed AF)")
 
     if result["findings"]:
         print("\n  FINDINGS:")
@@ -391,7 +388,11 @@ def main(argv=None):
         "serve": cmd_serve,
     }
 
-    return commands[args.command](args)
+    try:
+        return commands[args.command](args)
+    except (ValueError, OverflowError, ZeroDivisionError) as exc:
+        print(f"Invalid input: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
