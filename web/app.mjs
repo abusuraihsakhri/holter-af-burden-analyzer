@@ -101,12 +101,14 @@ async function analyze() {
 el('analyze').addEventListener('click', analyze);
 el('example').addEventListener('click', () => {
   el('csv-file').value = '';
+  el('file-info').textContent = 'Max 5 MB. A selected file takes priority over pasted intervals.';
   el('rr-text').value = '800, 810, 795, 825, 780, 790, 815, 800, 805, 790, 830, 770, 800, 810, 795, 820, 785, 805, 815, 790';
   status('Example RR series loaded. Select Analyze recording.');
 });
 el('reset').addEventListener('click', () => {
   el('rr-text').value = '';
   el('csv-file').value = '';
+  el('file-info').textContent = 'Max 5 MB. A selected file takes priority over pasted intervals.';
   el('tachy').value = '100';
   el('brady').value = '50';
   latest = null;
