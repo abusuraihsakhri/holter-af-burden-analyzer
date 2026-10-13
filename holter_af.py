@@ -48,6 +48,8 @@ def _validate_rr(rr_intervals_ms: List[float], minimum: int = 1) -> None:
         raise ValueError(f"At least {minimum} RR interval(s) required")
     for index, rr in enumerate(rr_intervals_ms):
         _validate_scalar(rr, f"RR interval at index {index}")
+        if rr < 1 or rr > 86_400_000:
+            raise ValueError(f"RR interval at index {index} outside supported range")
 
 
 # =============================================================================
@@ -63,7 +65,10 @@ def rr_to_hr(rr_ms: float) -> float:
 def hr_to_rr(hr_bpm: float) -> float:
     """Convert heart rate in bpm to RR interval in ms."""
     _validate_scalar(hr_bpm, "Heart rate")
-    return 60000.0 / hr_bpm
+    result = 60000.0 / hr_bpm
+    if not math.isfinite(result):
+        raise ValueError("Heart rate cannot be represented as an RR interval")
+    return result
 
 
 def calculate_mean_rr(rr_intervals_ms: List[float]) -> float:
