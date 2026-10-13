@@ -84,7 +84,7 @@ def calculate_sdnn(rr_intervals_ms: List[float]) -> float:
     SDNN reflects all cyclic components responsible for variability
     in the period of recording. It is the gold standard for HRV.
     
-    Normal SDNN (24h Holter): >50 ms (low risk), <50 ms (high risk)
+    Clinical SDNN interpretation requires artefact-free NN intervals and comparable recording durations.
     
     Args:
         rr_intervals_ms: List of RR intervals in milliseconds
@@ -149,7 +149,7 @@ def calculate_rmssd(rr_intervals_ms: List[float]) -> float:
     RMSSD reflects parasympathetic (vagal) modulation of heart rate.
     It is the primary time-domain measure of short-term HRV.
     
-    Normal RMSSD: >20 ms (healthy adults)
+    Thresholds from short or unfiltered RR series should not be treated as clinical cutoffs.
     
     Args:
         rr_intervals_ms: List of RR intervals in milliseconds
@@ -173,7 +173,7 @@ def calculate_pnn50(rr_intervals_ms: List[float]) -> float:
     
     pNN50 reflects parasympathetic activity and correlates with RMSSD.
     
-    Normal pNN50: >5% (healthy young adults), decreases with age
+    This function reports a descriptive RR metric, not a clinical classification.
     
     Args:
         rr_intervals_ms: List of RR intervals in milliseconds
@@ -210,7 +210,7 @@ def calculate_heart_rate_stats(rr_intervals_ms: List[float]) -> Dict[str, Any]:
     if not hrs:
         raise ValueError("No valid RR intervals")
     
-    # Resting HR: use the lowest sustained HR (minimum 10-beat average)
+    # Lowest 10-beat average (proxy only; resting state is not measured).
     resting_hr = min(hrs)  # Simplified: use minimum instantaneous HR
     
     # For a more accurate resting HR, compute rolling averages
