@@ -101,7 +101,8 @@ export function analyzeRR(rr, flags = null, options = {}) {
     if (Math.abs(delta) > 50) n50++;
   }
 
-  const hrs = rr.map(v => 60000 / v);
+  const minRR = rr.reduce((a, b) => Math.min(a, b));
+  const maxRR = rr.reduce((a, b) => Math.max(a, b));
   const tachyTime = rr.reduce((total, v) => total + (v < 60000 / tachyThreshold ? v : 0), 0);
   const bradyTime = rr.reduce((total, v) => total + (v > 60000 / bradyThreshold ? v : 0), 0);
   const pauses = rr.map((v, i) => ({index: i, duration_ms: v})).filter(p => p.duration_ms > 2000);
@@ -131,8 +132,8 @@ export function analyzeRR(rr, flags = null, options = {}) {
     monitoring_hours: round(totalTime / 3600000, 4),
     mean_rr_ms: round(meanRR, 2),
     mean_hr_bpm: round(60000 * rr.length / totalTime, 2),
-    min_hr_bpm: round(Math.min(...(hrs.length <= 50000 ? hrs : [60000 / Math.max(...rr)])), 2),
-    max_hr_bpm: round(Math.max(...(hrs.length <= 50000 ? hrs : [60000 / Math.min(...rr)])), 2),
+    min_hr_bpm: round(60000 / maxRR, 2),
+    max_hr_bpm: round(60000 / minRR, 2),
     sdnn_ms: round(sdnn, 2),
     rmssd_ms: round(Math.sqrt(sumSq / (rr.length - 1)), 2),
     pnn50_percent: round(100 * n50 / (rr.length - 1), 2),
