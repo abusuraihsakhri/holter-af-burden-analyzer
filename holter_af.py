@@ -21,6 +21,7 @@ License: MIT
 """
 
 import math
+from numbers import Real
 from typing import Dict, Any, List, Optional, Tuple
 
 
@@ -35,28 +36,44 @@ BRADYCARDIA_HR_THRESHOLD = 50  # bpm
 AF_IRREGULARITY_THRESHOLD = 0.15  # CV > 0.15 suggests irregularity
 
 
+def _validate_scalar(value: float, name: str) -> None:
+    """Reject non-numeric, non-finite and non-positive measurements."""
+    if isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be a positive, finite number")
+
+
+def _validate_rr(rr_intervals_ms: List[float], minimum: int = 1) -> None:
+    """Validate every sample rather than silently discarding invalid intervals."""
+    if rr_intervals_ms is None or len(rr_intervals_ms) < minimum:
+        raise ValueError(f"At least {minimum} RR interval(s) required")
+    for index, rr in enumerate(rr_intervals_ms):
+        _validate_scalar(rr, f"RR interval at index {index}")
+        if rr < 1 or rr > 86_400_000:
+            raise ValueError(f"RR interval at index {index} outside supported range")
+
+
 # =============================================================================
 # CORE RR INTERVAL ANALYSIS
 # =============================================================================
 
 def rr_to_hr(rr_ms: float) -> float:
     """Convert RR interval in ms to heart rate in bpm."""
-    if rr_ms <= 0:
-        raise ValueError("RR interval must be positive")
+    _validate_scalar(rr_ms, "RR interval")
     return 60000.0 / rr_ms
 
 
 def hr_to_rr(hr_bpm: float) -> float:
     """Convert heart rate in bpm to RR interval in ms."""
-    if hr_bpm <= 0:
-        raise ValueError("Heart rate must be positive")
-    return 60000.0 / hr_bpm
+    _validate_scalar(hr_bpm, "Heart rate")
+    result = 60000.0 / hr_bpm
+    if not math.isfinite(result):
+        raise ValueError("Heart rate cannot be represented as an RR interval")
+    return result
 
 
 def calculate_mean_rr(rr_intervals_ms: List[float]) -> float:
     """Calculate mean RR interval in ms."""
-    if not rr_intervals_ms:
-        raise ValueError("RR intervals list cannot be empty")
+    _validate_rr(rr_intervals_ms)
     return sum(rr_intervals_ms) / len(rr_intervals_ms)
 
 
@@ -67,7 +84,7 @@ def calculate_sdnn(rr_intervals_ms: List[float]) -> float:
     SDNN reflects all cyclic components responsible for variability
     in the period of recording. It is the gold standard for HRV.
     
-    Normal SDNN (24h Holter): >50 ms (low risk), <50 ms (high risk)
+    Clinical SDNN interpretation requires artefact-free NN intervals and comparable recording durations.
     
     Args:
         rr_intervals_ms: List of RR intervals in milliseconds
@@ -75,8 +92,7 @@ def calculate_sdnn(rr_intervals_ms: List[float]) -> float:
     Returns:
         SDNN in milliseconds
     """
-    if len(rr_intervals_ms) < 2:
-        raise ValueError("Need at least 2 RR intervals for SDNN")
+    _validate_rr(rr_intervals_ms, minimum=2)
     n = len(rr_intervals_ms)
     mean = sum(rr_intervals_ms) / n
     variance = sum((x - mean) ** 2 for x in rr_intervals_ms) / (n - 1)
@@ -97,10 +113,10 @@ def calculate_sdann(rr_intervals_ms: List[float], segment_minutes: int = 5) -> f
     Returns:
         SDANN in milliseconds
     """
-    if not rr_intervals_ms:
-        raise ValueError("RR intervals list cannot be empty")
+    _validate_rr(rr_intervals_ms)
     
-    # Group RR intervals into 5-minute segments
+    _validate_scalar(segment_minutes, "Segment duration")
+    # Group RR intervals into time-based segments.
     segment_ms = segment_minutes * 60 * 1000
     segments = []
     current_segment = []
@@ -133,7 +149,7 @@ def calculate_rmssd(rr_intervals_ms: List[float]) -> float:
     RMSSD reflects parasympathetic (vagal) modulation of heart rate.
     It is the primary time-domain measure of short-term HRV.
     
-    Normal RMSSD: >20 ms (healthy adults)
+    Thresholds from short or unfiltered RR series should not be treated as clinical cutoffs.
     
     Args:
         rr_intervals_ms: List of RR intervals in milliseconds
@@ -141,8 +157,7 @@ def calculate_rmssd(rr_intervals_ms: List[float]) -> float:
     Returns:
         RMSSD in milliseconds
     """
-    if len(rr_intervals_ms) < 2:
-        raise ValueError("Need at least 2 RR intervals for RMSSD")
+    _validate_rr(rr_intervals_ms, minimum=2)
     
     successive_diffs = []
     for i in range(1, len(rr_intervals_ms)):
@@ -158,7 +173,7 @@ def calculate_pnn50(rr_intervals_ms: List[float]) -> float:
     
     pNN50 reflects parasympathetic activity and correlates with RMSSD.
     
-    Normal pNN50: >5% (healthy young adults), decreases with age
+    This function reports a descriptive RR metric, not a clinical classification.
     
     Args:
         rr_intervals_ms: List of RR intervals in milliseconds
@@ -166,8 +181,7 @@ def calculate_pnn50(rr_intervals_ms: List[float]) -> float:
     Returns:
         pNN50 as percentage (0-100)
     """
-    if len(rr_intervals_ms) < 2:
-        raise ValueError("Need at least 2 RR intervals for pNN50")
+    _validate_rr(rr_intervals_ms, minimum=2)
     
     count_gt_50 = 0
     total_pairs = len(rr_intervals_ms) - 1
@@ -189,15 +203,14 @@ def calculate_heart_rate_stats(rr_intervals_ms: List[float]) -> Dict[str, Any]:
     Returns:
         Dictionary with HR statistics
     """
-    if not rr_intervals_ms:
-        raise ValueError("RR intervals list cannot be empty")
+    _validate_rr(rr_intervals_ms)
     
-    hrs = [rr_to_hr(rr) for rr in rr_intervals_ms if rr > 0]
+    hrs = [rr_to_hr(rr) for rr in rr_intervals_ms]
     
     if not hrs:
         raise ValueError("No valid RR intervals")
     
-    # Resting HR: use the lowest sustained HR (minimum 10-beat average)
+    # Lowest 10-beat average (proxy only; resting state is not measured).
     resting_hr = min(hrs)  # Simplified: use minimum instantaneous HR
     
     # For a more accurate resting HR, compute rolling averages
@@ -210,7 +223,7 @@ def calculate_heart_rate_stats(rr_intervals_ms: List[float]) -> Dict[str, Any]:
     return {
         "min_hr": round(min(hrs), 1),
         "max_hr": round(max(hrs), 1),
-        "mean_hr": round(sum(hrs) / len(hrs), 1),
+        "mean_hr": round(60000.0 * len(rr_intervals_ms) / sum(rr_intervals_ms), 1),
         "resting_hr": round(resting_hr, 1),
         "num_beats": len(hrs),
     }
@@ -229,6 +242,7 @@ def detect_pauses(rr_intervals_ms: List[float]) -> Dict[str, Any]:
     Returns:
         Dictionary with pause information
     """
+    _validate_rr(rr_intervals_ms)
     significant_pauses = []
     pathological_pauses = []
     
@@ -258,9 +272,9 @@ def calculate_tachycardia_burden(rr_intervals_ms: List[float], threshold_bpm: fl
     Returns:
         Dictionary with tachycardia burden
     """
-    if not rr_intervals_ms:
-        raise ValueError("RR intervals list cannot be empty")
+    _validate_rr(rr_intervals_ms)
     
+    _validate_scalar(threshold_bpm, "Tachycardia threshold")
     threshold_rr = hr_to_rr(threshold_bpm)
     tachy_count = sum(1 for rr in rr_intervals_ms if rr < threshold_rr)
     total = len(rr_intervals_ms)
@@ -289,9 +303,9 @@ def calculate_bradycardia_burden(rr_intervals_ms: List[float], threshold_bpm: fl
     Returns:
         Dictionary with bradycardia burden
     """
-    if not rr_intervals_ms:
-        raise ValueError("RR intervals list cannot be empty")
+    _validate_rr(rr_intervals_ms)
     
+    _validate_scalar(threshold_bpm, "Bradycardia threshold")
     threshold_rr = hr_to_rr(threshold_bpm)
     brady_count = sum(1 for rr in rr_intervals_ms if rr > threshold_rr)
     total = len(rr_intervals_ms)
@@ -314,8 +328,7 @@ def calculate_irregularity_index(rr_intervals_ms: List[float]) -> Dict[str, Any]
     
     CV = SDNN / Mean RR
     
-    A high irregularity index (CV > 0.15) suggests atrial fibrillation
-    or other irregular rhythm.
+    A high CV is nonspecific and cannot establish AF without ECG review.
     
     Args:
         rr_intervals_ms: List of RR intervals in milliseconds
@@ -323,8 +336,7 @@ def calculate_irregularity_index(rr_intervals_ms: List[float]) -> Dict[str, Any]
     Returns:
         Dictionary with irregularity index
     """
-    if len(rr_intervals_ms) < 2:
-        raise ValueError("Need at least 2 RR intervals")
+    _validate_rr(rr_intervals_ms, minimum=2)
     
     mean_rr = calculate_mean_rr(rr_intervals_ms)
     sdnn = calculate_sdnn(rr_intervals_ms)
@@ -336,9 +348,9 @@ def calculate_irregularity_index(rr_intervals_ms: List[float]) -> Dict[str, Any]
         "irregularity_index": round(cv, 4),
         "irregular": cv > AF_IRREGULARITY_THRESHOLD,
         "interpretation": (
-            "Irregular rhythm consistent with atrial fibrillation"
+            "Increased RR variability (nonspecific; ECG confirmation required for AF)"
             if cv > AF_IRREGULARITY_THRESHOLD
-            else "Regular rhythm"
+            else "RR variability below threshold (AF not excluded)"
         ),
     }
 
@@ -352,7 +364,7 @@ def calculate_af_burden(
     Calculate AF burden from RR intervals.
     
     If af_annotations are provided (beat-by-beat AF flags), uses them directly.
-    Otherwise, estimates AF from RR irregularity (CV > threshold).
+    Otherwise, reports a screening proxy based on RR irregularity (CV > threshold).
     
     AF burden = Time in AF / Total monitoring time x 100%
     
@@ -364,15 +376,17 @@ def calculate_af_burden(
     Returns:
         Dictionary with AF burden analysis
     """
-    if not rr_intervals_ms:
-        raise ValueError("RR intervals list cannot be empty")
+    _validate_rr(rr_intervals_ms)
     
+    _validate_scalar(af_rr_threshold_cv, "RR irregularity CV threshold")
     total_time_ms = sum(rr_intervals_ms)
     total_beats = len(rr_intervals_ms)
     
     if af_annotations is not None:
         if len(af_annotations) != len(rr_intervals_ms):
             raise ValueError("af_annotations must have same length as rr_intervals_ms")
+        if any(type(flag) is not bool for flag in af_annotations):
+            raise ValueError("af_annotations must contain booleans only")
         
         af_time_ms = sum(
             rr for rr, is_af in zip(rr_intervals_ms, af_annotations) if is_af
@@ -411,6 +425,12 @@ def calculate_af_burden(
         "af_beats": af_beats,
         "total_beats": total_beats,
         "detection_method": detection_method,
+        "af_burden_is_estimate": af_annotations is None,
+        "interpretation": (
+            "RR-variability screening estimate; not an ECG-confirmed AF burden"
+            if af_annotations is None
+            else "Time-weighted burden from supplied AF annotations; verify annotations against ECG"
+        ),
         "monitoring_hours": round(total_time_ms / 3600000, 2),
         "af_hours": round(af_time_ms / 3600000, 2),
     }
@@ -430,8 +450,7 @@ def comprehensive_holter_analysis(
     Returns:
         Comprehensive analysis dictionary
     """
-    if not rr_intervals_ms:
-        raise ValueError("RR intervals list cannot be empty")
+    _validate_rr(rr_intervals_ms)
     
     result = {"parameters": {}, "findings": [], "warnings": []}
     
@@ -440,11 +459,16 @@ def comprehensive_holter_analysis(
     result["parameters"]["heart_rate"] = hr_stats
     
     if hr_stats["max_hr"] > 150:
-        result["warnings"].append(f"Maximum HR {hr_stats['max_hr']} bpm - consider SVT or rapid AF")
+        result["warnings"].append(f"High instantaneous HR ({hr_stats['max_hr']} bpm); review ECG for artefact.")
     if hr_stats["min_hr"] < 40:
-        result["warnings"].append(f"Minimum HR {hr_stats['min_hr']} bpm - significant bradycardia")
+        result["warnings"].append(f"Low instantaneous HR ({hr_stats['min_hr']} bpm); review ECG for artefact.")
     
-    # HRV metrics
+    # HRV metrics: strictly NN-filtered data are required for clinical HRV interpretation.
+    if af_annotations is None:
+        result["warnings"].append("No verified AF annotations: AF burden is an RR-variability screening estimate, not a diagnosis.")
+    elif any(af_annotations):
+        result["warnings"].append("AF-annotated beats present: RR-derived HRV values must not be interpreted as sinus NN-HRV.")
+
     mean_rr = calculate_mean_rr(rr_intervals_ms)
     sdnn = calculate_sdnn(rr_intervals_ms)
     rmssd = calculate_rmssd(rr_intervals_ms)
@@ -457,8 +481,6 @@ def comprehensive_holter_analysis(
         "pnn50_percent": round(pnn50, 1),
     }
     
-    if sdnn < 50:
-        result["warnings"].append(f"Low SDNN ({sdnn:.1f} ms) - reduced HRV, increased risk")
     
     # Pauses
     pauses = detect_pauses(rr_intervals_ms)
@@ -466,10 +488,10 @@ def comprehensive_holter_analysis(
     
     if pauses["num_pathological"] > 0:
         result["warnings"].append(
-            f"{pauses['num_pathological']} pathological pause(s) detected (>{PAUSE_PATHOLOGICAL_MS}ms)"
+            f"{pauses['num_pathological']} RR interval(s) >{PAUSE_PATHOLOGICAL_MS}ms; verify ECG."
         )
     if pauses["num_significant"] > 0:
-        result["findings"].append(f"{pauses['num_significant']} significant pause(s) (>{PAUSE_SIGNIFICANT_MS}ms)")
+        result["findings"].append(f"{pauses['num_significant']} RR interval(s) >{PAUSE_SIGNIFICANT_MS}ms; verify ECG.")
     
     # Tachycardia/bradycardia burden
     tachy = calculate_tachycardia_burden(rr_intervals_ms)
@@ -494,7 +516,8 @@ def comprehensive_holter_analysis(
     result["parameters"]["af_burden"] = af
     
     if af["af_burden_percent"] > 0:
-        result["findings"].append(f"AF burden: {af['af_burden_percent']:.1f}%")
+        label = "Estimated RR irregularity time" if af_annotations is None else "Annotated AF time"
+        result["findings"].append(f"{label}: {af['af_burden_percent']:.1f}%")
     
     result["summary"] = "; ".join(result["findings"]) if result["findings"] else "No significant abnormalities detected"
     

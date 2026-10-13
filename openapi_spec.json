@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Holter Af Burden Analyzer API",
-    "description": "Enterprise Distributed Component Platform (Clinical & Cryptographic AI) adhering to CAP / CLSI / NIST Standards.",
-    "version": "3.0.0-ENTERPRISE",
+    "description": "Research-oriented RR analytics and legacy generic task-audit endpoints. The source of truth for the running API is GET /openapi.json.",
+    "version": "3.0.0",
     "contact": {
       "name": "Dr. Abu Suraih Sakhri",
       "url": "https://github.com/abusuraihsakhri"
@@ -22,7 +22,7 @@
     },
     "/metrics": {
       "get": {
-        "summary": "Prometheus operational metrics",
+        "summary": "In-memory request and audit counters (JSON)",
         "responses": {
           "200": {
             "description": "Prometheus text metrics"
@@ -76,7 +76,7 @@
     },
     "/api/chat": {
       "post": {
-        "summary": "Air-gapped supervisory conversational assistant",
+        "summary": "Deterministic mock response; does not perform clinical verification",
         "requestBody": {
           "content": {
             "application/json": {
@@ -107,6 +107,53 @@
         "responses": {
           "200": {
             "description": "Cryptographic audit trail"
+          }
+        }
+      }
+    },
+    "/api/analyze": {
+      "post": {
+        "summary": "Compute RR statistics and AF burden from optional verified annotations",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rr_intervals_ms": {
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "af_annotations": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "required": [
+                  "rr_intervals_ms"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "RR/AF analysis summary"
+          },
+          "413": {
+            "description": "Recording too large"
+          },
+          "422": {
+            "description": "Invalid input"
           }
         }
       }
