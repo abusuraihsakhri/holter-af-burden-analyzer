@@ -52,7 +52,7 @@ The API exposes `POST /api/analyze` for a JSON payload such as:
 {"rr_intervals_ms":[500,1500],"af_annotations":[true,false]}
 ```
 
-A 25% time-weighted annotated AF burden is expected for this example. The legacy `POST /api/audit`, `POST /api/chat`, `GET /api/audit/logs`, and `GET /metrics` endpoints remain available for compatibility. **The legacy generic audit thresholds are not calibrated Holter clinical thresholds**; the mock chat endpoint performs no clinical analysis.
+A 25% time-weighted annotated AF burden is expected for this example. The legacy `POST /api/audit`, `POST /api/chat`, `GET /api/audit/logs`, and `GET /metrics` endpoints remain available for compatibility. **The legacy generic audit and enrichment thresholds are not calibrated Holter clinical thresholds**; the mock chat endpoint performs no clinical analysis.
 
 The API is unauthenticated, and its audit history is in-memory. Its identifier-screening regexes are **not** comprehensive PHI de-identification. Do not expose the API on a public network or submit identifiable clinical information. `AUDIT_SECRET_KEY` controls the in-process HMAC audit signing key; set it securely for server use. The audit ledger is neither persistent nor a regulated audit system.
 
