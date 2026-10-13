@@ -9,10 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml .
-RUN pip install --no-cache-dir ".[dev]"
-
 COPY . .
+RUN pip install --no-cache-dir .
 
 # Create a non-root user for security
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
